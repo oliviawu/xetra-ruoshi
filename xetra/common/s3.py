@@ -10,7 +10,7 @@ class S3BucketConnector():
     Class for interacting with S3 Buckets
     """
 
-    def __ini__(self,access_key:str, secret_key:str,endpoint:str,bucket:str):
+    def __init__(self,access_key:str, secret_key:str,endpoint:str,bucket:str):
         """
         Constructor for S3BucketConnector
         :param access_key: Access key for accessing S3
