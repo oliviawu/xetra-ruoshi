@@ -2,9 +2,10 @@
 
 import os
 import boto3
-
 import logging
-
+from io import StringIO,BytesIO
+import pandas as pd
+from xetra.common.constants import S3FileTypes
 class S3BucketConnector():
     """
     Class for interacting with S3 Buckets
@@ -36,11 +37,38 @@ class S3BucketConnector():
         files = [obj.key for obj in self._bucket.objects.filter(Prefix=prefix)]
         return files
 
-    def csv_to_df(self):
-        pass
+    def read_csv_to_df(self,key:str,encoding:str ='utf-8',sep: str=','):
+        """
+        reading a csv file from the S3 bucket and returning a dataframe
+        :param key: key of a file that should be read
+        :param encoding: encoding of the data inside the csv file
+        :param sep: separator of the csv file
+        :return: Pandas dataframe fo the file
+        """
+        self._logger.info('Reading file %s/%s/%s', self.endpoint,self._bucket.name,key)
+        csv_obj = self._bucket.Object(key=key).get().get('Body').read().decode(encoding)
+        data = StringIO(csv_obj)
+        df = pd.read_csv(data, sep)
+        return df
 
-    def write_df_to_s3(self):
-        pass
+
+    def write_df_to_s3(self,df:pd.DataFrame, key: str,file_format:str):
+        """
+        Write a Pandas DataFrame to S3
+        :param df:
+        :param key:
+        :param file_format:
+        :return:
+        """
+        if df.empty:
+            self._logger.info('The dataframe is empty.')
+            return None
+        if file_format== S3FileTypes.CSV.value:
+            out_buffer = StringIO()
+            df.to_csv(out_buffer, index=False)
+            return self._bucket.put_object(Body=out_buffer, Key=key)
+
+
 
     
 
