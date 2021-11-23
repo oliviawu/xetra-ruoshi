@@ -6,6 +6,7 @@ import logging
 from io import StringIO,BytesIO
 import pandas as pd
 from xetra.common.constants import S3FileTypes
+from xetra.common.custom_exceptions import WrongFormatException
 class S3BucketConnector():
     """
     Class for interacting with S3 Buckets
@@ -66,8 +67,24 @@ class S3BucketConnector():
         if file_format== S3FileTypes.CSV.value:
             out_buffer = StringIO()
             df.to_csv(out_buffer, index=False)
-            return self._bucket.put_object(Body=out_buffer, Key=key)
+            return self.__put_object(out_buffer, key)
+        if file_format== S3FileTypes.PARQUET.value:
+            out_buffer = BytesIO()
+            df.to_partquet(out_buffer, index=False)
+            return self.__put_object(out_buffer, key)
+        self._logger.info('The file format %s is not supported to be written to s3.',file_format)
+        raise WrongFormatException
 
+    def __put_object(self,out_buffer: StringIO or BytesIO, key: str):
+        """
+        Helper function for self.write_df_to_s3()
+        :param out_buffer: StringIO or BytesIO that should be written
+        :param key: target key of the saved file
+        :return:
+        """
+        self._logger.info('Writing file to %s/%s/%s', self.endpoint, self._bucket.name,key)
+        self._bucket.put_object(Body=out_buffer.getvalue(),Key=key)
+        return True
 
 
     

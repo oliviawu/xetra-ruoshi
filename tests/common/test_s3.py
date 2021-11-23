@@ -7,6 +7,9 @@ import unittest
 import boto3
 from moto import mock_s3
 from xetra.common.s3 import S3BucketConnector
+import pandas as pd
+from io import StringIO,BytesIO
+from xetra.common.custom_exceptions import WrongFormatException
 
 class TestS3BucketConnectorMethods(unittest.TestCase):
     """
@@ -134,6 +137,127 @@ class TestS3BucketConnectorMethods(unittest.TestCase):
                 ]
             }
         )
+
+    def test_write_df_to_s3_empty(self):
+        """
+        Test the write_df_to_s3 method with as empty DataFrame as input
+        :return:
+        """
+
+        # Exception results
+        return_exp=None
+        log_exp='The dataframe is empty.'
+
+        # Test Init
+        df_empty=pd.DataFrame()
+        key='key.csv'
+        file_format='csv'
+        # Method exce
+        with self.assertLogs() as logm:
+            results=self.s3_bucket_conn.write_df_to_s3(df_empty,key,file_format)
+            # log test after exec
+            self.assertIn(log_exp,logm.output[0])
+
+        # Test after mehod exec
+        self.assertEqual(return_exp,results)
+
+    def test_write_df_to_s3_csv(self):
+        """
+        Test the qrite_df_to_s3 method
+        :return:
+        """
+        # Expected results
+        return_exp=True
+        df_exp=pd.DataFrame([['A','B'],['C','D']], columns =['col1','col2'])
+        key_exp='test.csv'
+        log_exp=f'Writing file to {self.s3_endpoint_url}/{self.s3_bucket_name}/{key_exp}'
+
+        # Test init
+        file_format='csv'
+
+        # Method exec
+        with self.assertLogs() as logm:
+            result=self.s3_bucket_conn.write_df_to_s3(df_exp,key_exp,file_format)
+            # Log test after the exec
+            self.assertIn(log_exp,logm.output[0])
+
+        # Test after method exec
+        data=self.s3_bucket.Object(key=key_exp).get().get('Body').read().decode('utf-8')
+        out_buffer=StringIO(data)
+        df_result=pd.read_csv(out_buffer)
+        self.assertEqual(return_exp,result)
+        self.assertTrue(df_exp.equals(df_result))
+
+        # clean up
+        self.s3_bucket.delete_objects(
+            Delete={
+                'Object':[
+                    {
+                        'Key': key_exp
+                    }
+                ]
+            }
+        )
+    def test_write_df_to_s3_parquet(self):
+        """
+        Test the qrite_df_to_s3 method
+        :return:
+        """
+        # Expected results
+        return_exp=True
+        df_exp=pd.DataFrame([['A','B'],['C','D']], columns =['col1','col2'])
+        key_exp='test.parquet'
+        log_exp=f'Writing file to {self.s3_endpoint_url}/{self.s3_bucket_name}/{key_exp}'
+
+        # Test init
+        file_format='parquet'
+
+        # Method exec
+        with self.assertLogs() as logm:
+            result=self.s3_bucket_conn.write_df_to_s3(df_exp,key_exp,file_format)
+            # Log test after the exec
+            self.assertIn(log_exp,logm.output[0])
+
+        # Test after method exec
+        data=self.s3_bucket.Object(key=key_exp).get().get('Body').read().decode('utf-8')
+        out_buffer=StringIO(data)
+        df_result=pd.read_csv(out_buffer)
+        self.assertEqual(return_exp,result)
+        self.assertTrue(df_exp.equals(df_result))
+
+        # clean up
+        self.s3_bucket.delete_objects(
+            Delete={
+                'Object':[
+                    {
+                        'Key': key_exp
+                    }
+                ]
+            }
+        )
+
+    def test_write_df_to_s3_wrong_format(self):
+        """
+        Tests the write_df_to_s3 method
+        if a not support format is given as argument
+        :return:
+        """
+
+        # Expected results
+        df_exp=pd.DataFrame([['A','B'],['C','D']],columns=['col1','col2'])
+        key_exp='test.parquet'
+        format_exp='wrong_format'
+        log_exp=f'The file format {format_exp} is not supported to be written to s3.'
+        exception_exp=WrongFormatException
+
+        # method exec
+        with self.assertLogs() as logm:
+            with self.assertRaises(exception_exp):
+                self.s3_bucket_conn.write_df_to_s3(df_exp,key_exp,format_exp)
+
+            # log test after exec
+            self.assertIn(log_exp,logm.output[0])
+
 
 if __name__=='__main__':
     unittest.main()
