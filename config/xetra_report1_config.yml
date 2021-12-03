@@ -11,4 +11,4 @@ logging:
       level: DEBUG
   root:
     level: DEBUG
-    handler: [console]
+    handlers: [console]
